@@ -2,42 +2,61 @@
 Four ingredient recipe 
 import random
 
-# Categories of ingredients (with some overlaps for variety)
-proteins = ["chicken", "beef", "tofu", "salmon", "eggs", "pork", "shrimp", "lentils", "turkey", "chickpeas"]
-veggies = ["broccoli", "spinach", "tomatoes", "bell peppers", "onions", "carrots", "zucchini", "mushrooms", "potatoes", "garlic"]
-carbs = ["rice", "pasta", "bread", "quinoa", "noodles", "couscous", "tortillas", "oats", "barley"]
-dairies = ["cheese", "milk", "butter", "yogurt", "cream", "parmesan", "feta", "mozzarella"]
-spices_herbs = ["salt", "pepper", "basil", "oregano", "garlic powder", "cumin", "paprika", "thyme", "rosemary", "chili powder"]
-oils_sauces = ["olive oil", "soy sauce", "tomato sauce", "honey", "lemon juice", "vinegar", "sesame oil", "mustard", "hot sauce"]
-fruits = ["apples", "bananas", "lemons", "berries", "oranges", "avocado", "pineapple", "mango"]
-others = ["flour", "sugar", "chocolate", "nuts", "beans", "corn", "peas"]
+import requests
+import os
 
-# Combine all ingredients into one big pool
-all_ingredients = proteins + veggies + carbs + dairies + spices_herbs + oils_sauces + fruits + others
+# Set your Spoonacular API key here (get it from https://spoonacular.com/food-api)
+API_KEY = "d90ff91f033248dcbe8c15c03993a8be"  # Replace with your actual key
 
-def generate_random_recipe():
-    # Pick 4 unique ingredients
-    ingredients = random.sample(all_ingredients, 4)
+if API_KEY == "d90ff91f033248dcbe8c15c03993a8be":
+    print("Please replace 'YOUR_API_KEY_HERE' with your actual Spoonacular API key.")
+    exit()
+
+BASE_URL = "https://api.spoonacular.com/recipes"
+
+def search_recipes(max_ingredients=4, number=20):
+    url = f"{BASE_URL}/complexSearch"
+    params = {
+        "apiKey": API_KEY,
+        "maxIngredients": max_ingredients,
+        "number": number,
+        "addRecipeInformation": True,  # Gets summary info including time/servings
+        "fillIngredients": True,      # Ensures ingredients are included
+        "sort": "random"               # Optional: for variety
+    }
     
-    # Fun random title words
-    title_words = ['Delight', 'Surprise', 'Bowl', 'Stir-Fry', 'Salad', 'Bake', 'Special', 'Fusion', 'Magic', 'Adventure']
-    title = f"Random Four-Ingredient {random.choice(title_words)}"
+    response = requests.get(url, params=params)
+    if response.status_code != 200:
+        print(f"Error: {response.status_code} - {response.text}")
+        return []
     
-    print("Recipe Title:", title)
-    print("\nIngredients:")
-    for ing in ingredients:
-        print("- " + ing.capitalize())
+    data = response.json()
+    return data.get("results", [])
+
+def get_recipe_details(recipe_id):
+    url = f"{BASE_URL}/{recipe_id}/information"
+    params = {"apiKey": API_KEY}
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        return response.json()
+    return None
+
+if __name__ == "__main__":
+    print("Fetching recipes with up to 4 ingredients...\n")
+    recipes = search_recipes(max_ingredients=4, number=20)
     
-    print("\nInstructions:")
-    print("1. Gather and prepare your ingredients (chop, slice, etc. as needed).")
-    print(f"2. Start by cooking or combining {ingredients[0].capitalize()} and {ingredients[1].capitalize()}.")
-    print(f"3. Add {ingredients[2].capitalize()} along with {ingredients[3].capitalize()} for flavor.")
-    print("4. Mix, cook, or bake until it looks/tastes ready. Be creative and enjoy your unique creation!")
-
-# Run it to generate a recipe
-generate_random_recipe()
-
-# Optional: Uncomment to generate multiple
-# for _ in range(3):
-#     generate_random_recipe()
-#     print("\n" + "-"*40 + "\n")
+    if not recipes:
+        print("No recipes found or API error.")
+    else:
+        print(f"Found {len(recipes)} recipes:\n")
+        for i, recipe in enumerate(recipes, 1):
+            title = recipe["title"]
+            ready_in = recipe.get("readyInMinutes", "N/A")
+            servings = recipe.get("servings", "N/A")
+            source_url = recipe["sourceUrl"]
+            ingredients = [ing["name"] for ing in recipe.get("extendedIngredients", [])]
+            
+            print(f"{i}. {title}")
+            print(f"   Ready in: {ready_in} minutes | Servings: {servings}")
+            print(f"   Ingredients ({len(ingredients)}): {', '.join(ingredients)}")
+            print(f"   Full recipe: {source_url}\n")
